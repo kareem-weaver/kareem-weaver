@@ -1,2 +1,2 @@
 # Kareem-Jabbar-Weaver
-Collection of Personal Projects
+Collection of personal and CS course projects.
