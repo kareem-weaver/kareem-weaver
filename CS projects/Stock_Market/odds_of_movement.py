@@ -1,4 +1,4 @@
-# As a reminder, ff I could actually predict the stock market, I would be rich.
+# First off, if I could  predict the stock market, I would be rich. This program uses Markov chains to predict the odds of an investment increasing or decreasing over a specific time interval.
 
 import yfinance as yf
 import numpy as np
