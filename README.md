@@ -1,2 +1,2 @@
 # Kareem-Jabbar-Weaver
-Collection of personal and CS course projects.
+Collection of personal projects that reflect my passion for the stock market and data science.
