@@ -1,3 +1,5 @@
+# As a reminder, ff I could actually predict the stock market, I would be rich.
+
 import yfinance as yf
 import numpy as np
 import pandas as pd
