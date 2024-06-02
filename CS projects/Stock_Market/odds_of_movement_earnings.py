@@ -19,7 +19,7 @@ class StockAnalysis:
             # Convert the date string to a datetime object
             date_num = datetime.strptime(date_str, '%Y-%m-%d')
 
-            # Calculate start and end dates
+            # Calculate start and end dates. The interval around earnings can be changed. In this case, I am interested in Tesla price action one week after earnings (0,7).
             startDate = date_num - pd.Timedelta(days=0)
             endDate = date_num + pd.Timedelta(days=7)
 
