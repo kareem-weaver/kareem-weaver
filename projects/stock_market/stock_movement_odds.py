@@ -1,4 +1,4 @@
-# First off, if I could  predict the stock market, I would be rich. This program uses Markov chains to predict the odds of an investment increasing or decreasing over a specific time interval.
+# Unfortunately, I can not predict the stock market. This model uses Markov chains to predict the odds of an investment increasing or decreasing over a specific time interval.
 
 import yfinance as yf
 import numpy as np
