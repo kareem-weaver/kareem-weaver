@@ -34,6 +34,7 @@ As a case study, I applied this model to Tesla (TSLA), specifically analyzing it
 
 - 14 Days Post-Earnings: After extending the time horizon, the odds of the stock being up significantly increase. This aligns with the idea that as volatility and FOMO (fear of missing out) decrease, investors start to see Tesla's value as a growth stock.
 
-[View Code](./projects/stock_market/tesla_earnings_results.png)
+[View Code](./projects/stock_market/tesla_earnings_odds.py)
+[Results](assets/img/tesla_earnings_results.png)
 
 ### Stock Price Prediction using machine Learning..
