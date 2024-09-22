@@ -25,7 +25,7 @@
 
 
 ## Projects
-### [Stock Market Prediction Model Using Markov Chains](./projects/stock_market)
+### [Stock Market Prediction Model Using Markov Chains](./projects/stock_market/stock_movement_odds.py)
 This project uses Markov chains to analyze stock price movements and predict the odds (not probabilities) that a stock will move up or down over a given time frame. By focusing on **odds**, the model outputs two distinct numbers representing the likelihood of the stock going up or down, which do not sum to 1 like probabilities would.
 
 As a case study, I applied this model to Tesla (TSLA), specifically analyzing its price action around quarterly earnings announcements. Knowing the volatility and market activity surrounding Tesla's earnings, I sought to see if the model could reflect the real-world fluctuations:
@@ -35,6 +35,7 @@ As a case study, I applied this model to Tesla (TSLA), specifically analyzing it
 - 14 Days Post-Earnings: After extending the time horizon, the odds of the stock being up significantly increase. This aligns with the idea that as volatility and FOMO (fear of missing out) decrease, investors start to see Tesla's value as a growth stock.
 
 [View Code](./projects/stock_market/tesla_earnings_odds.py)
-[Results](assets/img/tesla_earnings_results.png)
+
+(assets/img/tesla_earnings_results.png)
 
 ### Stock Price Prediction using machine Learning..
