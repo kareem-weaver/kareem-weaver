@@ -1,5 +1,5 @@
 # Same as "odds_of_movement" except only analyzing movement one week after earnings for Tesla. 
-# Hard coded to only work with Tesla's earnings for now.
+# Hard coded to only work with Tesla's earnings.
 
 import yfinance as yf
 import numpy as np
