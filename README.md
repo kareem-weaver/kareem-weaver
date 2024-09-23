@@ -25,6 +25,7 @@
 
 
 ## Projects
+----
 ### [Stock Market Prediction Model Using Markov Chains](./projects/stock_market/stock_movement_odds.py)
 This project uses Markov chains to analyze stock price movements and predict the odds (not probabilities) that a stock will move up or down over a given time frame. By focusing on **odds**, the model outputs two distinct numbers representing the likelihood of the stock going up or down, which do not sum to 1 like probabilities would.
 
@@ -38,5 +39,5 @@ As a case study, I applied this model to Tesla (TSLA), specifically analyzing it
 
 <img src="assets/img/tesla_earnings_results.png" alt="Tesla Earnings Results" width="650" height="450"/>
 
-
+----
 ### Stock Price Prediction using machine Learning..
