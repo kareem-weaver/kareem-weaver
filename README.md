@@ -26,7 +26,7 @@
 
 ## Projects
 ### [Stock Market Prediction Model Using Markov Chains](./projects/stock_market/stock_movement_odds.py)
-This project uses Markov chains to analyze stock price movements and predict the odds (not probabilities) that a stock will move up or down over a given time frame. By focusing on **odds**, the model outputs two distinct numbers representing the likelihood of the stock going up or down, which do not sum to 1 like probabilities would.
+This project uses Markov chains to analyze stock price movements and predict the odds (not probabilities) that a stock will move up or down over a given time frame. By focusing on **odds**, the model outputs two distinct numbers representing the likelihood of the stock going up or down, which do not sum to 1 as probabilities would.
 
 As a case study, I applied this model to Tesla (TSLA), specifically analyzing its price action around quarterly earnings announcements. Knowing the volatility and market activity surrounding Tesla's earnings, I sought to see if the model could reflect real-world fluctuations:
 
@@ -39,4 +39,5 @@ As a case study, I applied this model to Tesla (TSLA), specifically analyzing it
 <img src="assets/img/tesla_earnings_results.png" alt="Tesla Earnings Results" width="600" height="400"/>
 
 ----
-### Stock Price Prediction using machine Learning..
+### [MNIST Digit Classification using Neural Network](./projects/machine_learning/Mnist_number_classification)
+In this project, I developed a neural network from scratch to classify handwritten digits from the MNIST dataset. I utilized raw Python and NumPy to better understand deep learning concepts.
