@@ -25,7 +25,7 @@
 
 
 ## Projects
-### [Stock Market Prediction Model Using Markov Chains](https://github.com/kareem-weaver/kareem-weaver/tree/main/projects/data_science/stock_market_prediction_model)
+### 1. [Stock Market Prediction Model Using Markov Chains](https://github.com/kareem-weaver/kareem-weaver/tree/main/projects/data_science/stock_market_prediction_model)
 This project uses Markov chains to analyze stock price movements and predict the odds (not probabilities) that a stock will move up or down over a given time frame. By focusing on **odds**, the model outputs two distinct numbers representing the likelihood of the stock going up or down, which do not sum to 1 as probabilities would.
 
 As a case study, I applied this model to Tesla (TSLA), specifically analyzing its price action around quarterly earnings announcements. Knowing the volatility and market activity surrounding Tesla's earnings, I sought to see if the model could reflect real-world fluctuations:
@@ -38,6 +38,18 @@ As a case study, I applied this model to Tesla (TSLA), specifically analyzing it
 
 <img src="assets/img/tesla_earnings_results.png" alt="Tesla Earnings Results" width="600" height="400"/>
 
-----
-### [MNIST Digit Classification using Neural Network](./projects/machine_learning/Mnist_number_classification)
+### 2. [MNIST Digit Classification using Neural Network](./projects/machine_learning/Mnist_number_classification)
 In this project, I developed a neural network from scratch to classify handwritten digits from the MNIST dataset. I utilized raw Python and NumPy to better understand deep learning concepts.
+
+#### Training and Development Accuracy Summary
+
+After training the neural network for 550 iterations with a learning rate of 0.1, the final accuracies observed are:
+
+- **Iteration 550**:
+  - **Training Accuracy**: **89.55%**
+  - **Dev Accuracy**: **90.4%**
+
+#### Analysis
+The model achieved a dev accuracy of **90.4%**, indicating strong performance on the validation set and effective learning from the training data.
+
+### 3. Stock Market Prediction Model Using Machine Learning
