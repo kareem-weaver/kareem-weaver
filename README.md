@@ -30,7 +30,7 @@ This project uses Markov chains to analyze stock price movements and predict the
 
 As a case study, I applied this model to Tesla (TSLA), specifically analyzing its price action around quarterly earnings announcements. Knowing the volatility and market activity surrounding Tesla's earnings, I sought to see if the model could reflect real-world fluctuations:
 
-[View Code For Tesla Predictions Around Earnings]((https://github.com/kareem-weaver/kareem-weaver/tree/main/projects/data_science/stock_market_prediction_model/tesla_earnings_odds.py)
+[View Code For Tesla Predictions Around Earnings](https://github.com/kareem-weaver/kareem-weaver/tree/main/projects/data_science/stock_market_prediction_model/tesla_earnings_odds.py)
 
 - 7 Days Post-Earnings: The odds of Tesla being up or down are nearly identical, reinforcing the assumption that short-term trading after earnings resembles a 50/50 chance, akin to flipping a coin.
 
