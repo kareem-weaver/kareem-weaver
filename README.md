@@ -25,12 +25,12 @@
 
 
 ## Projects
-### [Stock Market Prediction Model Using Markov Chains](./projects/stock_market/stock_movement_odds.py)
+### [Stock Market Prediction Model Using Markov Chains](https://github.com/kareem-weaver/kareem-weaver/tree/main/projects/data_science/stock_market_prediction_model)
 This project uses Markov chains to analyze stock price movements and predict the odds (not probabilities) that a stock will move up or down over a given time frame. By focusing on **odds**, the model outputs two distinct numbers representing the likelihood of the stock going up or down, which do not sum to 1 as probabilities would.
 
 As a case study, I applied this model to Tesla (TSLA), specifically analyzing its price action around quarterly earnings announcements. Knowing the volatility and market activity surrounding Tesla's earnings, I sought to see if the model could reflect real-world fluctuations:
 
-[View Code For Tesla Predictions Around Earnings](./projects/stock_market/tesla_earnings_odds.py)
+[View Code For Tesla Predictions Around Earnings](./projects/stock_market](https://github.com/kareem-weaver/kareem-weaver/tree/main/projects/data_science/stock_market_prediction_model/tesla_earnings_odds.py)
 
 - 7 Days Post-Earnings: The odds of Tesla being up or down are nearly identical, reinforcing the assumption that short-term trading after earnings resembles a 50/50 chance, akin to flipping a coin.
 
