@@ -1,1 +1,0 @@
-polygonAPIkey = "p2z0yx8IL11EkTO4ko24xYp5ss40JMks"
