@@ -6,13 +6,13 @@ import platform
 import webbrowser
 
 # === CONFIG ===
-from dotenv import load_dotenv
-import os
-
-load_dotenv()
-BEARER_TOKEN = os.getenv("BEARER_TOKEN")
+# from dotenv import load_dotenv
+# import os
+BEARER_TOKEN = "AAAAAAAAAAAAAAAAAAAAAMzB2wEAAAAAkw%2BUQ6k2oDH3OhBMNcmzfStrMNI%3DPXMbtFSR76ts1qjnCeyZ7PQNGI9bzMx8HeINBqQ4i1NC5iLJHw"
+# load_dotenv()
+# BEARER_TOKEN = os.getenv("BEARER_TOKEN")
 USERNAME = "WhiteHouse"
-POLL_INTERVAL = 90  # seconds
+POLL_INTERVAL = 120  # seconds
 STREAMLINK_QUALITY = "worst"
 
 HEADERS = {
@@ -43,12 +43,19 @@ def fetch_latest_tweets(user_id, max_results=5):
         "expansions": "attachments.media_keys",
         "media.fields": "type,url"
     }
+
     response = requests.get(url, headers=HEADERS, params=params)
+
     if response.status_code == 200:
         return response.json()
-    else:
-        print(f"[ERROR] Failed to fetch tweets: {response.text}")
+    elif response.status_code == 429:
+        print("[WARN] 🚫 Rate limit hit! Sleeping for 2 minutes...")
+        time.sleep(120)
         return None
+    else:
+        print(f"[ERROR] Failed to fetch tweets: {response.status_code} - {response.text}")
+        return None
+
 
 def extract_urls(text):
     return re.findall(r'https?://\S+', text)
@@ -134,13 +141,21 @@ def main():
 
     while True:
         tweet_data = fetch_latest_tweets(user_id)
-        if tweet_data:
-            live_tweet = detect_live_video(tweet_data)
-            if live_tweet and live_tweet['id'] not in seen_ids:
-                seen_ids.add(live_tweet['id'])
-                alert_user()
-                launch_stream(live_tweet)
+
+        if tweet_data is None:
+            # Respect rate limit: sleep and try again next loop
+            print(f"[INFO] No data returned. Sleeping for {POLL_INTERVAL} seconds before retrying...")
+            time.sleep(POLL_INTERVAL)
+            continue
+
+        live_tweet = detect_live_video(tweet_data)
+        if live_tweet and live_tweet['id'] not in seen_ids:
+            seen_ids.add(live_tweet['id'])
+            alert_user()
+            launch_stream(live_tweet)
+
         time.sleep(POLL_INTERVAL)
+
 
 if __name__ == "__main__":
     main()
