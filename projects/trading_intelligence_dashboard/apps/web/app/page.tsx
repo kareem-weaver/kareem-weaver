@@ -14,7 +14,7 @@ const cards = [
   {
     title: "Ticker",
     desc: "View a single ticker’s chart + stats.",
-    href: "/ticker/AAPL",
+    href: "/ticker",
   },
 ];
 
