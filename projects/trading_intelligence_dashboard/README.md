@@ -142,3 +142,19 @@ http://localhost:8000/docs
 - [ ] Confirm grading rubric alignment
 
 ---
+
+
+
+
+# data contract schema:
+
+{
+  "uid": "source:unique_id_or_hash",
+  "source": "FTC",
+  "title": "…",
+  "url": "…",
+  "published_at": "2026-01-17T14:30:00Z",
+  "symbols": ["AAPL", "MSFT"],
+  "score": 0.0,
+  "tags": ["antitrust"]
+}
