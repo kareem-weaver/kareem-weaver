@@ -34,22 +34,18 @@ export default function NewsPage() {
     try {
       setStatus((s) => (s === "idle" ? "loading" : s));
 
-      const data = (await fetchNews({ limit: 25 })) as ApiNewsItem[];
+      // fetchNews returns an array from the backend
+      const data = (await fetchNews({ limit: 50 })) as any[];
 
-      const mapped: UiNewsItem[] = (data ?? []).map((n, idx) => {
-        const created = n.published_at ?? new Date().toISOString();
-        const tickers = n.symbols ?? [];
-
-        return {
-          id: `${created}-${n.source ?? "Unknown"}-${idx}`, // stable enough for dummy
-          source: n.source ?? "Unknown",
-          title: n.title,
-          url: n.url ?? null,
-          tickers,
-          score: 0, // backend will fill later
-          created_at: created,
-        };
-      });
+      const mapped: NewsItem[] = (data ?? []).map((n: any, idx: number) => ({
+        id: String(n.uid ?? `${n.published_at ?? ""}-${idx}`),
+        source: n.source ?? "Unknown",
+        title: n.title,
+        url: n.url ?? null,
+        tickers: Array.isArray(n.symbols) ? n.symbols : [],
+        score: typeof n.score === "number" ? n.score : Number(n.score ?? 0),
+        created_at: n.published_at ?? new Date().toISOString(),
+      }));
 
       setItems(mapped);
       setStatus("ok");
@@ -59,6 +55,7 @@ export default function NewsPage() {
       setErrorMsg(e?.message ?? "Failed to load news");
     }
   }
+
 
   useEffect(() => {
     load();

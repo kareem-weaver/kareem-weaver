@@ -11,7 +11,7 @@ r = redis.Redis.from_url(REDIS_URL, decode_responses=True)
 
 NEWS_LIST_KEY = "news:items"
 NEWS_SEEN_KEY = "news:seen"
-MAX_ITEMS = 1000
+MAX_ITEMS = 300
 
 
 def make_uid(source: str, title: str, url: str, published_at: str) -> str:
@@ -64,7 +64,7 @@ def main():
             demo_job()
         except Exception as e:
             print(f"[worker] error: {e}")
-        time.sleep(3)
+        time.sleep(10)
 
 
 if __name__ == "__main__":
