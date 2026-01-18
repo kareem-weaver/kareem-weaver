@@ -3,6 +3,7 @@ import os
 import time
 import hashlib
 from datetime import datetime, timezone
+from jobs.ftc_rss import fetch_ftc_press_releases
 
 import redis
 
@@ -32,39 +33,30 @@ def push_news_item(item: dict) -> bool:
     return True
 
 
-def demo_job():
-    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    source = "DummyFeed"
-    title = f"Demo headline @ {now}"
-    url = "https://example.com"
-    published_at = now
-    symbols = ["AAPL", "MSFT"]
+def ftc_rss_job():
+    for it in reversed(items):
+        push_news_item({
+            "uid": it.uid,
+            "source": it.source,
+            "title": it.title,
+            "url": it.url,
+            "published_at": it.published_at,
+            "symbols": it.symbols,
+            "score": it.score,
+            "tags": it.tags,
+        })
 
-    uid = make_uid(source, title, url, published_at)
-
-    item = {
-        "uid": uid,
-        "source": source,
-        "title": title,
-        "url": url,
-        "published_at": published_at,
-        "symbols": symbols,
-        "score": 0.0,
-        "tags": [],
-    }
-
-    pushed = push_news_item(item)
-    print(f"[worker] pushed={pushed} uid={uid}")
+    print(f"[worker] FTC RSS fetched={len(items)} pushed_new={pushed_count}")
 
 
 def main():
     print(f"[worker] starting with REDIS_URL={REDIS_URL}")
     while True:
         try:
-            demo_job()
+            ftc_rss_job()
         except Exception as e:
             print(f"[worker] error: {e}")
-        time.sleep(10)
+        time.sleep(30)
 
 
 if __name__ == "__main__":
