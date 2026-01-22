@@ -11,18 +11,17 @@ export type NewsItem = {
   symbols?: string[];
 };
 
-export async function fetchNews(params?: { limit?: number; symbol?: string }) {
+export async function fetchNews(params?: { limit?: number; source?: string; minutes?: number; since?: string}) {
   const qs = new URLSearchParams();
   if (params?.limit) qs.set("limit", String(params.limit));
-  if (params?.symbol) qs.set("symbol", params.symbol);
+  if (params?.source) qs.set("source", params.source);
+  if (params?.minutes != null) qs.set("minutes", String(params.minutes));
+  if (params?.since) qs.set("since", params.since);
 
   // ✅ CHANGE THIS PATH if your backend uses something different
   const url = `${API_BASE}/news${qs.toString() ? `?${qs}` : ""}`;
 
   const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`News API error ${res.status}: ${text}`);
-  }
-  return (await res.json()) as NewsItem[];
+  if (!res.ok) throw new Error(`News API error ${res.status}`);
+  return await res.json();
 }

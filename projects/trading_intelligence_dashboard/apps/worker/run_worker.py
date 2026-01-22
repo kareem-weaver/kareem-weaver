@@ -4,6 +4,9 @@ import time
 import hashlib
 from datetime import datetime, timezone
 from jobs.ftc_rss import fetch_ftc_press_releases
+from pipelines.ticker_universe import load_ticker_universe
+from pipelines.ticker_extract import extract_tickers
+from jobs.sec_atom import sec_atom_job
 
 import redis
 
@@ -13,6 +16,8 @@ r = redis.Redis.from_url(REDIS_URL, decode_responses=True)
 NEWS_LIST_KEY = "news:items"
 NEWS_SEEN_KEY = "news:seen"
 MAX_ITEMS = 300
+
+TICKER_UNIVERSE = load_ticker_universe()
 
 
 def make_uid(source: str, title: str, url: str, published_at: str) -> str:
@@ -33,27 +38,44 @@ def push_news_item(item: dict) -> bool:
     return True
 
 
-def ftc_rss_job():
+def ftc_rss_job(items):
+    pushed_count = 0
+
     for it in reversed(items):
-        push_news_item({
+        symbols = extract_tickers(it.title, TICKER_UNIVERSE)  # <-- ADD THIS LINE
+
+        pushed = push_news_item({
             "uid": it.uid,
             "source": it.source,
             "title": it.title,
             "url": it.url,
             "published_at": it.published_at,
-            "symbols": it.symbols,
+            "symbols": symbols,      # <-- USE THIS, not it.symbols
             "score": it.score,
             "tags": it.tags,
         })
 
+        if pushed:
+            pushed_count += 1 
+
     print(f"[worker] FTC RSS fetched={len(items)} pushed_new={pushed_count}")
 
 
+
 def main():
+    TICKER_UNIVERSE = load_ticker_universe()
+    print(f"[worker] ticker universe loaded: {len(TICKER_UNIVERSE)} symbols")
+
     print(f"[worker] starting with REDIS_URL={REDIS_URL}")
     while True:
         try:
-            ftc_rss_job()
+            # FTC
+            items = fetch_ftc_press_releases(limit=25)
+            ftc_rss_job(items)
+
+            # SEC
+            sec_atom_job(push_news_item, count=40, form_type=os.getenv("SEC_FORM_TYPE"))
+
         except Exception as e:
             print(f"[worker] error: {e}")
         time.sleep(30)

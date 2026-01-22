@@ -45,6 +45,8 @@ services:
     environment:
       REDIS_URL: redis://redis:6379/0
       PYTHONPATH: /app
+      SEC_USER_AGENT: "TradingIntelligenceDashboard (your-email@domain.com)"
+      SEC_FORM_TYPE: "8-K"   # set to "8-K" if you want less noise
     volumes:
       - ./apps/api:/app
       - ./apps/worker:/worker
