@@ -1,0 +1,12 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Worker runtime cache
+apps/worker/.cache/
+.cache/
+
+# Editor / OS junk
+.DS_Store
+.vscode/
+.idea/
