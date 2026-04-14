@@ -136,5 +136,6 @@ def sec_atom_job(push_news_item, count: int = 40, form_type: Optional[str] = Non
         )
         if pushed:
             pushed_count += 1
-
+    
+    print(json.dumps(items, indent=2))
     print(f"[worker] SEC Atom fetched={len(items)} pushed_new={pushed_count}")
