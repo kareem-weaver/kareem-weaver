@@ -1,188 +1,157 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-type ScreenerRow = {
-  symbol: string;
-  day: string;
-  close: number;
-  volume: number;
-  prev_close: number | null;
-  pct_change: number | null;
-  avg_volume: number | null;
-  rvol: number | null;
-};
+import { fetchScreener, ScreenerRow } from "@/lib/api";
 
 export default function ScreenerPage() {
   const [rows, setRows] = useState<ScreenerRow[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState("");
 
-  const [minVolume, setMinVolume] = useState<number>(1);
-  const [minRvol, setMinRvol] = useState<number>(1.0);
-  const [limit, setLimit] = useState<number>(20);
+  const [minVolume, setMinVolume] = useState("");
+  const [minRvol, setMinRvol] = useState("1");
+  const [minChg, setMinChg] = useState("");
+  const [maxChg, setMaxChg] = useState("");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [limit, setLimit] = useState("50");
 
-  const API_BASE = "http://localhost:8000";
-
-  const fetchScreener = async () => {
-    setLoading(true);
-    setError(null);
-
+  async function run() {
     try {
-      const params = new URLSearchParams();
-      params.set("min_volume", String(minVolume));
-      params.set("min_rvol", String(minRvol));
-      params.set("limit", String(limit));
-      params.set("rvol_days", "20");
+      setLoading(true);
+      setErrorMsg("");
 
-      const res = await fetch(`${API_BASE}/screener?${params.toString()}`);
+      const data = await fetchScreener({
+        min_volume: minVolume ? Number(minVolume) : undefined,
+        min_rvol: minRvol ? Number(minRvol) : undefined,
+        min_pct_change: minChg ? Number(minChg) : undefined,
+        max_pct_change: maxChg ? Number(maxChg) : undefined,
+        min_price: minPrice ? Number(minPrice) : undefined,
+        max_price: maxPrice ? Number(maxPrice) : undefined,
+        limit: limit ? Number(limit) : 50,
+      });
 
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`API error (${res.status}): ${text}`);
-      }
-
-      const data = (await res.json()) as ScreenerRow[];
       setRows(data);
     } catch (e: any) {
-      setError(e?.message ?? "Fetch failed");
+      setErrorMsg(e?.message ?? "Failed to fetch screener");
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   useEffect(() => {
-    fetchScreener();
+    run();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <div style={{ padding: 24 }}>
-      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12 }}>
-        Screener
-      </h1>
+    <div className="tid-panel-soft overflow-hidden">
+      <div className="border-b border-[#182231] px-4 py-4">
+        <div className="grid gap-3 md:grid-cols-7">
+          <div>
+            <label className="mb-2 block text-xs uppercase tracking-[0.16em] text-[#7e8aa6]">
+              Min Volume
+            </label>
+            <input className="tid-input w-full" placeholder="e.g. 500000" value={minVolume} onChange={(e) => setMinVolume(e.target.value)} />
+          </div>
 
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
-        <div>
-          <div style={{ fontSize: 12, marginBottom: 4 }}>Min Volume</div>
-          <input
-            type="number"
-            value={minVolume}
-            onChange={(e) => setMinVolume(Number(e.target.value))}
-            style={{ padding: 8, border: "1px solid #ccc", borderRadius: 6 }}
-          />
+          <div>
+            <label className="mb-2 block text-xs uppercase tracking-[0.16em] text-[#7e8aa6]">
+              Min RVOL
+            </label>
+            <input className="tid-input w-full" value={minRvol} onChange={(e) => setMinRvol(e.target.value)} />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-xs uppercase tracking-[0.16em] text-[#7e8aa6]">
+              Min Chg %
+            </label>
+            <input className="tid-input w-full" placeholder="e.g. -5" value={minChg} onChange={(e) => setMinChg(e.target.value)} />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-xs uppercase tracking-[0.16em] text-[#7e8aa6]">
+              Max Chg %
+            </label>
+            <input className="tid-input w-full" placeholder="e.g. 20" value={maxChg} onChange={(e) => setMaxChg(e.target.value)} />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-xs uppercase tracking-[0.16em] text-[#7e8aa6]">
+              Min Price
+            </label>
+            <input className="tid-input w-full" placeholder="e.g. 1" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-xs uppercase tracking-[0.16em] text-[#7e8aa6]">
+              Max Price
+            </label>
+            <input className="tid-input w-full" placeholder="e.g. 500" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} />
+          </div>
+
+          <div className="grid grid-cols-[1fr_auto] gap-3">
+            <div>
+              <label className="mb-2 block text-xs uppercase tracking-[0.16em] text-[#7e8aa6]">
+                Limit
+              </label>
+              <input className="tid-input w-full" value={limit} onChange={(e) => setLimit(e.target.value)} />
+            </div>
+            <div className="flex items-end">
+              <button className="tid-btn-primary w-full" onClick={run}>
+                {loading ? "..." : "RUN"}
+              </button>
+            </div>
+          </div>
         </div>
-
-        <div>
-          <div style={{ fontSize: 12, marginBottom: 4 }}>Min RVOL</div>
-          <input
-            type="number"
-            step="0.1"
-            value={minRvol}
-            onChange={(e) => setMinRvol(Number(e.target.value))}
-            style={{ padding: 8, border: "1px solid #ccc", borderRadius: 6 }}
-          />
-        </div>
-
-        <div>
-          <div style={{ fontSize: 12, marginBottom: 4 }}>Limit</div>
-          <input
-            type="number"
-            value={limit}
-            onChange={(e) => setLimit(Number(e.target.value))}
-            style={{ padding: 8, border: "1px solid #ccc", borderRadius: 6 }}
-          />
-        </div>
-
-        <button
-          onClick={fetchScreener}
-          style={{
-            padding: "8px 14px",
-            border: "1px solid #333",
-            borderRadius: 6,
-            cursor: "pointer",
-            background: "white",
-            height: 38,
-            marginTop: 16,
-          }}
-        >
-          Run
-        </button>
       </div>
 
-      {loading && <div>Loading...</div>}
-      {error && <div style={{ color: "crimson", marginBottom: 12 }}>{error}</div>}
+      <div className="border-b border-[#182231] px-4 py-3 text-sm text-[#7e8aa6]">
+        {loading ? "Loading…" : `${rows.length} results`}
+      </div>
 
-      <div style={{ overflowX: "auto" }}>
-        <table style={{ borderCollapse: "collapse", minWidth: 900 }}>
-          <thead>
-            <tr style={{ background: "#f3f3f3" }}>
-              <th style={th}>Symbol</th>
-              <th style={th}>Day</th>
-              <th style={thRight}>Close</th>
-              <th style={thRight}>Volume</th>
-              <th style={thRight}>% Chg</th>
-              <th style={thRight}>Avg Vol (20)</th>
-              <th style={thRight}>RVOL</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.symbol}>
-                <td style={td}>
-                  <a href={`/ticker/${r.symbol}`} style={{ textDecoration: "underline" }}>
-                    {r.symbol}
-                  </a>
-                </td>
-                <td style={td}>{r.day}</td>
-                <td style={tdRight}>{r.close.toFixed(2)}</td>
-                <td style={tdRight}>{r.volume.toLocaleString()}</td>
-                <td style={tdRight}>
-                  {r.pct_change === null ? "—" : `${r.pct_change.toFixed(2)}%`}
-                </td>
-                <td style={tdRight}>
-                  {r.avg_volume === null ? "—" : Math.round(r.avg_volume).toLocaleString()}
-                </td>
-                <td style={tdRight}>
-                  {r.rvol === null ? "—" : r.rvol.toFixed(2)}
-                </td>
-              </tr>
-            ))}
-
-            {!loading && rows.length === 0 && (
+      {errorMsg ? (
+        <div className="px-4 py-3 text-sm text-[#ff6b6b]">{errorMsg}</div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="border-b border-[#182231] text-left text-[#7e8aa6]">
               <tr>
-                <td style={td} colSpan={7}>
-                  No results. Try lowering Min RVOL or Min Volume.
-                </td>
+                <th className="px-4 py-4 font-medium">Symbol</th>
+                <th className="px-4 py-4 font-medium">Date</th>
+                <th className="px-4 py-4 font-medium">Close</th>
+                <th className="px-4 py-4 font-medium">Chg %</th>
+                <th className="px-4 py-4 font-medium">Volume</th>
+                <th className="px-4 py-4 font-medium">Avg Vol</th>
+                <th className="px-4 py-4 font-medium">RVOL</th>
               </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={`${row.symbol}-${row.day}`} className="border-b border-[#101827] hover:bg-[#09111b]">
+                  <td className="px-4 py-4 font-semibold text-[#00f58b]">{row.symbol}</td>
+                  <td className="px-4 py-4 text-white">{row.day}</td>
+                  <td className="px-4 py-4 text-white">
+                    {row.close != null ? `$${row.close.toFixed(2)}` : "—"}
+                  </td>
+                  <td className={`px-4 py-4 font-semibold ${row.pct_change != null && row.pct_change >= 0 ? "text-[#00f58b]" : "text-[#ff6b6b]"}`}>
+                    {row.pct_change != null ? `${row.pct_change > 0 ? "+" : ""}${row.pct_change.toFixed(2)}%` : "—"}
+                  </td>
+                  <td className="px-4 py-4 text-white">
+                    {row.volume != null ? `${(row.volume / 1_000_000).toFixed(1)}M` : "—"}
+                  </td>
+                  <td className="px-4 py-4 text-white">
+                    {row.avg_volume != null ? `${(row.avg_volume / 1_000_000).toFixed(1)}M` : "—"}
+                  </td>
+                  <td className="px-4 py-4 font-semibold text-white">
+                    {row.rvol != null ? `${row.rvol.toFixed(2)}x` : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
-
-const th: React.CSSProperties = {
-  border: "1px solid #ddd",
-  padding: 10,
-  textAlign: "left",
-  fontSize: 13,
-};
-
-const thRight: React.CSSProperties = {
-  ...th,
-  textAlign: "right",
-};
-
-const td: React.CSSProperties = {
-  border: "1px solid #ddd",
-  padding: 10,
-  fontSize: 13,
-};
-
-const tdRight: React.CSSProperties = {
-  ...td,
-  textAlign: "right",
-};
-

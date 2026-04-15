@@ -1,27 +1,84 @@
-// apps/web/src/lib/api.ts
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
 
-export type NewsItem = {
-  id?: string | number;
+export type NewsApiItem = {
+  uid?: string;
   source?: string;
   title: string;
   url?: string;
   published_at?: string;
-  symbol?: string;
   symbols?: string[];
+  score?: number;
+  tags?: string[];
 };
 
-export async function fetchNews(params?: { limit?: number; source?: string; minutes?: number; since?: string}) {
+export type ScreenerRow = {
+  symbol: string;
+  day: string;
+  close: number | null;
+  volume: number | null;
+  prev_close: number | null;
+  pct_change: number | null;
+  avg_volume: number | null;
+  rvol: number | null;
+};
+
+export type Candle = {
+  day?: string;
+  date?: string;
+  open?: number;
+  high?: number;
+  low?: number;
+  close?: number;
+  volume?: number;
+};
+
+export async function fetchNews(params?: {
+  limit?: number;
+  source?: string;
+  minutes?: number;
+  since?: string;
+}) {
   const qs = new URLSearchParams();
-  if (params?.limit) qs.set("limit", String(params.limit));
+  if (params?.limit != null) qs.set("limit", String(params.limit));
   if (params?.source) qs.set("source", params.source);
   if (params?.minutes != null) qs.set("minutes", String(params.minutes));
   if (params?.since) qs.set("since", params.since);
 
-  // ✅ CHANGE THIS PATH if your backend uses something different
-  const url = `${API_BASE}/news${qs.toString() ? `?${qs}` : ""}`;
-
+  const url = `${API_BASE}/news${qs.toString() ? `?${qs.toString()}` : ""}`;
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`News API error ${res.status}`);
-  return await res.json();
+  return (await res.json()) as NewsApiItem[];
+}
+
+export async function fetchScreener(params?: {
+  symbols?: string;
+  min_price?: number;
+  max_price?: number;
+  min_volume?: number;
+  min_pct_change?: number;
+  max_pct_change?: number;
+  rvol_days?: number;
+  min_rvol?: number;
+  max_rvol?: number;
+  limit?: number;
+}) {
+  const qs = new URLSearchParams();
+
+  Object.entries(params ?? {}).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      qs.set(key, String(value));
+    }
+  });
+
+  const url = `${API_BASE}/screener${qs.toString() ? `?${qs.toString()}` : ""}`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Screener API error ${res.status}`);
+  return (await res.json()) as ScreenerRow[];
+}
+
+export async function fetchCandles(symbol: string) {
+  const url = `${API_BASE}/tickers/${encodeURIComponent(symbol)}/candles`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Ticker candles API error ${res.status}`);
+  return (await res.json()) as Candle[];
 }

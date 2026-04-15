@@ -1,17 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { fetchNews } from "@/lib/api";
-
-type ApiNewsItem = {
-  uid?: string;
-  title: string;
-  source?: string;
-  url?: string;
-  published_at?: string;
-  symbols?: string[];
-  score?: number;
-};
+import { fetchNews, NewsApiItem } from "@/lib/api";
 
 type UiNewsItem = {
   id: string;
@@ -23,7 +13,7 @@ type UiNewsItem = {
   created_at: string;
 };
 
-function mapApiToUi(data: ApiNewsItem[]): UiNewsItem[] {
+function mapApiToUi(data: NewsApiItem[]): UiNewsItem[] {
   return (data ?? []).map((n, idx) => ({
     id: String(n.uid ?? `${n.published_at ?? ""}-${idx}`),
     source: n.source ?? "Unknown",
@@ -36,143 +26,98 @@ function mapApiToUi(data: ApiNewsItem[]): UiNewsItem[] {
 }
 
 export default function NewsPage() {
-  // UI state
   const [items, setItems] = useState<UiNewsItem[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
-  const [errorMsg, setErrorMsg] = useState<string>("");
-
-  // Modes
-  // ✅ requirement: /news should be LIVE by default
+  const [errorMsg, setErrorMsg] = useState("");
   const [mode, setMode] = useState<"live" | "history">("live");
   const [historyLimit, setHistoryLimit] = useState(50);
 
-  // ---- refs to avoid races / stale loads ----
-  const modeRef = useRef<"live" | "history">(mode);
-  const historyLimitRef = useRef(historyLimit);
   const reqSeq = useRef(0);
-
-  useEffect(() => {
-    modeRef.current = mode;
-  }, [mode]);
-
-  useEffect(() => {
-    historyLimitRef.current = historyLimit;
-  }, [historyLimit]);
-
-  // ---- LIVE session container (frontend-only) ----
-  // seenRef = all UIDs that existed when session began + anything we’ve already appended
+  const modeRef = useRef<"live" | "history">("live");
   const liveSeenRef = useRef<Set<string>>(new Set());
-  // sessionId increments whenever a new live session starts (End session / switch to live)
   const liveSessionIdRef = useRef(0);
 
-  const sortedItems = useMemo(() => {
-    // minimal client work: stable ordering
-    return [...items].sort((a, b) => b.created_at.localeCompare(a.created_at));
-  }, [items]);
+  const sortedItems = useMemo(
+    () => [...items].sort((a, b) => b.created_at.localeCompare(a.created_at)),
+    [items]
+  );
 
   async function loadHistory() {
     const seq = ++reqSeq.current;
     try {
       setStatus((s) => (s === "idle" ? "loading" : s));
-
-      const data: ApiNewsItem[] = await fetchNews({ limit: historyLimitRef.current });
-
+      const data = await fetchNews({ limit: historyLimit });
       if (seq !== reqSeq.current) return;
       if (modeRef.current !== "history") return;
 
-      const mapped = mapApiToUi(data);
-      setItems(mapped);
+      setItems(mapApiToUi(data));
       setStatus("ok");
       setErrorMsg("");
     } catch (e: any) {
       if (seq !== reqSeq.current) return;
       setStatus("error");
-      setErrorMsg(e?.message ?? "Failed to load news");
+      setErrorMsg(e?.message ?? "Failed to fetch");
     }
   }
 
-  /**
-   * Start a brand-new live session:
-   * - Baseline by fetching latest N and marking them as seen (NOT displayed)
-   * - Clear the visible tape to empty
-   */
   async function startLiveSession() {
-    // invalidate any in-flight request
     reqSeq.current += 1;
-    const mySessionId = ++liveSessionIdRef.current;
+    const sessionId = ++liveSessionIdRef.current;
 
-    setItems([]); // ✅ empty by default
+    setItems([]);
     setStatus("loading");
     setErrorMsg("");
 
     try {
-      // baseline snapshot: mark current items as "already existed"
-      const baseline: ApiNewsItem[] = await fetchNews({ limit: 200 });
-
-      // if a newer live session started, ignore
-      if (mySessionId !== liveSessionIdRef.current) return;
+      const baseline = await fetchNews({ limit: 200 });
+      if (sessionId !== liveSessionIdRef.current) return;
       if (modeRef.current !== "live") return;
 
-      const mapped = mapApiToUi(baseline);
-      const seen = new Set<string>();
-      for (const it of mapped) seen.add(it.id);
-
-      liveSeenRef.current = seen;
-
-      // stay empty; we only show items that arrive AFTER this baseline
+      const baselineMapped = mapApiToUi(baseline);
+      liveSeenRef.current = new Set(baselineMapped.map((x) => x.id));
       setStatus("ok");
     } catch (e: any) {
-      if (mySessionId !== liveSessionIdRef.current) return;
+      if (sessionId !== liveSessionIdRef.current) return;
       setStatus("error");
-      setErrorMsg(e?.message ?? "Failed to start live session");
+      setErrorMsg(e?.message ?? "Failed to fetch");
     }
   }
 
-  /**
-   * Poll live:
-   * - Fetch latest N
-   * - Append only items not in liveSeenRef
-   */
   async function pollLiveOnce() {
-    const mySessionId = liveSessionIdRef.current;
     const seq = ++reqSeq.current;
+    const mySession = liveSessionIdRef.current;
 
     try {
-      const data: ApiNewsItem[] = await fetchNews({ limit: 200 });
-
+      const data = await fetchNews({ limit: 200 });
       if (seq !== reqSeq.current) return;
       if (modeRef.current !== "live") return;
-      if (mySessionId !== liveSessionIdRef.current) return;
+      if (mySession !== liveSessionIdRef.current) return;
 
       const mapped = mapApiToUi(data);
-
       const seen = liveSeenRef.current;
-      const newOnes: UiNewsItem[] = [];
+      const fresh: UiNewsItem[] = [];
 
-      for (const it of mapped) {
-        if (!seen.has(it.id)) {
-          seen.add(it.id);
-          newOnes.push(it);
+      for (const item of mapped) {
+        if (!seen.has(item.id)) {
+          seen.add(item.id);
+          fresh.push(item);
         }
       }
 
-      if (newOnes.length > 0) {
-        // newest first so they "pop up at the top"
-        newOnes.sort((a, b) => b.created_at.localeCompare(a.created_at));
-        setItems((prev) => [...newOnes, ...prev]);
+      if (fresh.length > 0) {
+        fresh.sort((a, b) => b.created_at.localeCompare(a.created_at));
+        setItems((prev) => [...fresh, ...prev]);
       }
 
-      // keep status ok in live mode even if no new items
       setStatus("ok");
       setErrorMsg("");
     } catch (e: any) {
       if (seq !== reqSeq.current) return;
       setStatus("error");
-      setErrorMsg(e?.message ?? "Live polling failed");
+      setErrorMsg(e?.message ?? "Failed to fetch");
     }
   }
 
-  // On first mount: LIVE by default + empty by default (start session baseline)
   useEffect(() => {
     modeRef.current = "live";
     setMode("live");
@@ -180,23 +125,17 @@ export default function NewsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Polling behavior
   useEffect(() => {
     if (mode !== "live") return;
-
-    // poll every 3s in live
     const id = setInterval(() => {
       pollLiveOnce();
     }, 3000);
-
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
 
-  // When switching to history, load it once (and refresh every 60s if you want)
   useEffect(() => {
     if (mode !== "history") return;
-
     loadHistory();
     const id = setInterval(loadHistory, 60000);
     return () => clearInterval(id);
@@ -204,126 +143,133 @@ export default function NewsPage() {
   }, [mode, historyLimit]);
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold">News</h1>
-
-        <div className="flex items-center gap-3">
-          {/* Mode toggle */}
-          <div className="flex rounded-md border overflow-hidden text-sm">
+    <div className="tid-panel-soft min-h-[760px] overflow-hidden">
+      <div className="border-b border-[#182231] px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
             <button
-              className={`px-3 py-1.5 ${mode === "live" ? "bg-black text-white" : ""}`}
-              type="button"
+              className={`rounded-md px-4 py-2 text-sm font-medium ${
+                mode === "live"
+                  ? "bg-[#083225] text-[#00f58b]"
+                  : "bg-[#101723] text-[#7e8aa6] hover:text-white"
+              }`}
               onClick={() => {
-                // switch to live + start a fresh session (empty)
                 modeRef.current = "live";
                 setMode("live");
                 startLiveSession();
               }}
             >
-              Live
+              LIVE
             </button>
 
             <button
-              className={`px-3 py-1.5 ${mode === "history" ? "bg-black text-white" : ""}`}
-              type="button"
+              className={`rounded-md px-4 py-2 text-sm font-medium ${
+                mode === "history"
+                  ? "bg-[#083225] text-[#00f58b]"
+                  : "bg-[#101723] text-[#7e8aa6] hover:text-white"
+              }`}
               onClick={() => {
                 modeRef.current = "history";
                 setMode("history");
               }}
             >
-              History
+              HISTORY
             </button>
+
+            {mode === "history" && (
+              <select
+                className="tid-input h-10"
+                value={historyLimit}
+                onChange={(e) => setHistoryLimit(Number(e.target.value))}
+              >
+                {[25, 50, 100, 250, 500].map((n) => (
+                  <option key={n} value={n}>
+                    last {n}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
-          {/* End session (only in live) */}
           {mode === "live" && (
-            <button
-              type="button"
-              className="rounded-md border px-3 py-1.5 text-sm"
-              onClick={() => {
-                // end/reset: new baseline, empty tape
-                startLiveSession();
-              }}
-            >
-              End session
+            <button className="tid-btn-secondary h-10" onClick={startLiveSession}>
+              END SESSION
             </button>
           )}
+        </div>
+      </div>
 
-          {/* History limit */}
-          {mode === "history" && (
-            <select
-              className="rounded-md border px-2 py-1.5 text-sm"
-              value={historyLimit}
-              onChange={(e) => setHistoryLimit(Number(e.target.value))}
-            >
-              {[25, 50, 100, 250, 500].map((n) => (
-                <option key={n} value={n}>
-                  last {n}
-                </option>
-              ))}
-            </select>
-          )}
+      <div className="border-b border-[#182231] px-4 py-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 text-sm">
+            <span className="font-semibold tracking-[0.2em] text-[#00f58b]">
+              LIVE TAPE
+            </span>
+            <span className="text-[#7e8aa6]">
+              {mode === "live" ? `${sortedItems.length} new • polling 3s` : `${sortedItems.length} loaded`}
+            </span>
+          </div>
 
-          {/* Status */}
-          <div className="text-sm opacity-70 whitespace-nowrap">
+          <div className="text-xs text-[#7e8aa6]">
             {status === "loading" && "Loading..."}
-            {status === "ok" &&
-              (mode === "live"
-                ? `Live (session) • ${new Date().toLocaleTimeString()}`
-                : `History • ${new Date().toLocaleTimeString()}`)}
-            {status === "error" && "Error"}
+            {status === "error" && errorMsg}
           </div>
         </div>
       </div>
 
-      {status === "error" && (
-        <div className="rounded-md border p-3 text-sm">
-          <div className="font-medium">Couldn’t load news</div>
-          <div className="opacity-70">{errorMsg}</div>
+      {sortedItems.length === 0 && status !== "error" ? (
+        <div className="flex min-h-[560px] flex-col items-center justify-center text-center">
+          <div className="mb-4 h-3 w-3 rounded-full bg-[#00f58b]/80" />
+          <div className="mb-2 text-lg text-[#a7b4cf]">Waiting for new items…</div>
+          <div className="text-sm text-[#5c6780]">
+            {mode === "live"
+              ? "Session started • polling every 3s"
+              : "No history items found"}
+          </div>
+        </div>
+      ) : (
+        <div className="divide-y divide-[#182231]">
+          {sortedItems.map((n) => (
+            <div key={n.id} className="px-4 py-4 transition hover:bg-[#0a1019]">
+              <div className="mb-2 flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.16em]">
+                <span className="text-[#00f58b]">{n.source}</span>
+                <span className="text-[#6f7c98]">
+                  {new Date(n.created_at).toLocaleTimeString()}
+                </span>
+              </div>
+
+              <div className="mb-3 text-base text-white">
+                {n.url ? (
+                  <a href={n.url} target="_blank" rel="noreferrer" className="hover:text-[#00f58b]">
+                    {n.title}
+                  </a>
+                ) : (
+                  n.title
+                )}
+              </div>
+
+              {n.tickers.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {n.tickers.map((t) => (
+                    <span
+                      key={t}
+                      className="rounded border border-[#0d6048] bg-[#07281e] px-2 py-1 text-xs text-[#00f58b]"
+                    >
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       )}
 
-      <div className="space-y-3">
-        {sortedItems.map((n) => (
-          <div key={n.id} className="rounded-lg border p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-xs uppercase tracking-wide opacity-70">
-                {n.source} • {new Date(n.created_at).toLocaleTimeString()}
-              </div>
-              <div className="text-xs opacity-70">score: {n.score.toFixed(2)}</div>
-            </div>
-
-            <div className="mt-2 text-base">
-              {n.url ? (
-                <a href={n.url} target="_blank" rel="noreferrer" className="hover:underline">
-                  {n.title}
-                </a>
-              ) : (
-                <span>{n.title}</span>
-              )}
-            </div>
-
-            {n.tickers?.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {n.tickers.map((t) => (
-                  <span key={t} className="text-xs rounded-full border px-2 py-1">
-                    {t}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
-
-        {status !== "error" && sortedItems.length === 0 && (
-          <div className="rounded-md border p-3 text-sm opacity-70">
-            {mode === "live"
-              ? "No new news yet (live session starts empty)."
-              : "No news found in history."}
-          </div>
-        )}
-      </div>
+      {status === "error" && (
+        <div className="border-t border-[#3a1212] bg-[#1a0a0c] px-4 py-3 text-sm text-[#ff6b6b]">
+          {errorMsg}
+        </div>
+      )}
     </div>
   );
 }

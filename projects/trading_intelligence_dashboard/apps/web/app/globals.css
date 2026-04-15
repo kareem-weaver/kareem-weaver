@@ -1,3 +1,96 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: #04070d;
+}
+
+body {
+  color: #d7e3ff;
+  font-feature-settings: "rlig" 1, "calt" 1;
+}
+
+* {
+  border-color: #182231;
+}
+
+input,
+select,
+button {
+  outline: none;
+}
+
+::selection {
+  background: rgba(0, 245, 139, 0.2);
+}
+
+.tid-panel {
+  border: 1px solid #182231;
+  border-radius: 0.375rem;
+  background: #070c14;
+}
+
+.tid-panel-soft {
+  border: 1px solid #182231;
+  border-radius: 0.375rem;
+  background: rgba(7, 11, 18, 0.7);
+}
+
+.tid-muted {
+  color: #7e8aa6;
+}
+
+.tid-accent {
+  color: #00f58b;
+}
+
+.tid-input {
+  height: 2.75rem;
+  border: 1px solid #182231;
+  border-radius: 0.375rem;
+  background: #0a1019;
+  padding: 0 0.75rem;
+  font-size: 0.875rem;
+  color: white;
+}
+
+.tid-input::placeholder {
+  color: #5c6780;
+}
+
+.tid-btn {
+  display: inline-flex;
+  height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.375rem;
+  padding: 0 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: 0.15s ease;
+}
+
+.tid-btn-primary {
+  background: #00f58b;
+  color: black;
+}
+
+.tid-btn-primary:hover {
+  filter: brightness(0.95);
+}
+
+.tid-btn-secondary {
+  border: 1px solid #182231;
+  background: #0a1019;
+  color: #c7d3eb;
+}
+
+.tid-btn-secondary:hover {
+  background: #0f1622;
+}

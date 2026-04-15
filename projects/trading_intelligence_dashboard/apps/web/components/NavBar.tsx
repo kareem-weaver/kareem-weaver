@@ -1,31 +1,58 @@
-import Link from "next/link";
+"use client";
 
-const links = [
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+type Props = {
+  dateText: string;
+};
+
+const navItems = [
   { href: "/", label: "Home" },
-  { href: "/screener", label: "Screener" },
   { href: "/news", label: "News" },
-  { href: "/ticker/AAPL", label: "Ticker" }, // placeholder example
+  { href: "/screener", label: "Screener" },
+  { href: "/ticker", label: "Ticker" },
 ];
 
-export default function NavBar() {
-  return (
-    <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-black">
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-        <Link href="/" className="font-semibold tracking-tight">
-          Trading Intel
-        </Link>
+export default function NavBar({ dateText }: Props) {
+  const pathname = usePathname();
 
-        <nav className="flex gap-4 text-sm">
-          {links.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className="text-zinc-700 hover:text-black dark:text-zinc-300 dark:hover:text-white"
-            >
-              {l.label}
-            </Link>
-          ))}
-        </nav>
+  return (
+    <header className="border-b border-[#182231] bg-[#050910]">
+      <div className="mx-auto flex h-14 w-full max-w-[1400px] items-center justify-between px-6">
+        <div className="flex items-center gap-8">
+          <Link href="/" className="flex items-center gap-3">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#00f58b]" />
+            <div className="flex items-baseline gap-2">
+              <span className="font-semibold tracking-wide text-white">TID</span>
+              <span className="text-sm text-[#7e8aa6]">Trading Intelligence</span>
+            </div>
+          </Link>
+
+          <nav className="flex items-center gap-1">
+            {navItems.map((item) => {
+              const active = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`rounded-md px-4 py-2 text-sm transition ${
+                    active
+                      ? "bg-[#07281e] text-[#00f58b]"
+                      : "text-[#8f9bb3] hover:bg-[#0a1019] hover:text-white"
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+
+        <div className="flex items-center gap-4 text-sm text-[#7e8aa6]">
+          <span>{dateText}</span>
+          <span className="text-lg">↪</span>
+        </div>
       </div>
     </header>
   );
