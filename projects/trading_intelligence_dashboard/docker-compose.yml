@@ -41,12 +41,17 @@ services:
       dockerfile: Dockerfile
     container_name: trading_worker
     depends_on:
+      - db
       - redis
     environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/trading
       REDIS_URL: redis://redis:6379/0
       PYTHONPATH: /app
       SEC_USER_AGENT: "TradingIntelligenceDashboard (your-email@domain.com)"
       SEC_FORM_TYPE: "8-K"   # set to "8-K" if you want less noise
+      PRICE_REFRESH_SECONDS: "21600"
+      PRICE_REFRESH_SYMBOL_LIMIT: "500"
+      PRICE_REFRESH_BATCH_SIZE: "25"
     volumes:
       - ./apps/api:/app
       - ./apps/worker:/worker

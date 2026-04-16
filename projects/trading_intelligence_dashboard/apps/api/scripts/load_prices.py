@@ -51,6 +51,12 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Optional cap on number of symbols loaded",
     )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=25,
+        help="How many symbols to request from yfinance at once",
+    )
     return parser.parse_args()
 
 
@@ -171,23 +177,19 @@ def choose_symbols(args: argparse.Namespace, engine) -> list[str]:
     return symbols
 
 
-def download_symbol_history(symbol: str, period: str, interval: str) -> pd.DataFrame:
-    df = yf.download(
-        symbol,
-        period=period,
-        interval=interval,
-        auto_adjust=False,
-        progress=False,
-        threads=False,
-    )
+def chunk_symbols(symbols: list[str], batch_size: int) -> Iterable[list[str]]:
+    if batch_size <= 0:
+        raise ValueError("batch_size must be greater than zero")
 
-    if df.empty:
-        return df
+    for idx in range(0, len(symbols), batch_size):
+        yield symbols[idx : idx + batch_size]
 
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = [c[0] for c in df.columns]
 
-    df = df.reset_index()
+def normalize_download_frame(frame: pd.DataFrame, symbol: str) -> pd.DataFrame:
+    if frame.empty:
+        return frame
+
+    df = frame.copy().reset_index()
 
     if "Date" in df.columns:
         df.rename(columns={"Date": "day"}, inplace=True)
@@ -213,7 +215,62 @@ def download_symbol_history(symbol: str, period: str, interval: str) -> pd.DataF
         }
     )
 
-    out = out.dropna(subset=["day", "open", "high", "low", "close"])
+    return out.dropna(subset=["day", "open", "high", "low", "close"])
+
+
+def download_symbol_history(symbol: str, period: str, interval: str) -> pd.DataFrame:
+    df = yf.download(
+        symbol,
+        period=period,
+        interval=interval,
+        auto_adjust=False,
+        progress=False,
+        threads=False,
+    )
+
+    if df.empty:
+        return df
+
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = [c[0] for c in df.columns]
+
+    return normalize_download_frame(df, symbol)
+
+
+def download_symbol_batch(symbols: list[str], period: str, interval: str) -> dict[str, pd.DataFrame]:
+    if not symbols:
+        return {}
+
+    raw = yf.download(
+        tickers=symbols,
+        period=period,
+        interval=interval,
+        auto_adjust=False,
+        progress=False,
+        threads=False,
+        group_by="ticker",
+    )
+
+    if raw.empty:
+        return {}
+
+    if not isinstance(raw.columns, pd.MultiIndex):
+        symbol = symbols[0]
+        return {symbol: normalize_download_frame(raw, symbol)}
+
+    out: dict[str, pd.DataFrame] = {}
+    for symbol in symbols:
+        if symbol not in raw.columns.get_level_values(0):
+            continue
+
+        symbol_frame = raw[symbol]
+        if symbol_frame.empty:
+            continue
+
+        normalized = normalize_download_frame(symbol_frame, symbol)
+        if not normalized.empty:
+            out[symbol] = normalized
+
     return out
 
 
@@ -238,6 +295,47 @@ def upsert_prices(engine, rows: Iterable[dict]) -> int:
     return len(rows)
 
 
+def load_prices(
+    *,
+    database_url: str,
+    symbols: list[str],
+    period: str = "6mo",
+    interval: str = "1d",
+    batch_size: int = 25,
+) -> tuple[int, list[str]]:
+    engine = create_engine(database_url, future=True)
+    ensure_table(engine)
+
+    total_rows = 0
+    loaded_symbols: list[str] = []
+
+    for batch_index, batch in enumerate(chunk_symbols(symbols, batch_size), start=1):
+        try:
+            histories = download_symbol_batch(batch, period, interval)
+        except Exception as exc:
+            print(f"[batch {batch_index}] [WARN] Batch download failed, falling back to single-symbol requests: {exc}")
+            histories = {}
+
+        for symbol in batch:
+            try:
+                df = histories.get(symbol)
+                if df is None:
+                    df = download_symbol_history(symbol, period, interval)
+
+                if df.empty:
+                    print(f"[batch {batch_index}] [WARN] No data for {symbol}")
+                    continue
+
+                inserted = upsert_prices(engine, df.to_dict(orient="records"))
+                total_rows += inserted
+                loaded_symbols.append(symbol)
+                print(f"[batch {batch_index}] [OK] {symbol}: upserted {inserted} rows")
+            except Exception as exc:
+                print(f"[batch {batch_index}] [ERROR] {symbol}: {exc}")
+
+    return total_rows, loaded_symbols
+
+
 def main() -> None:
     args = parse_args()
     engine = create_engine(args.database_url, future=True)
@@ -249,23 +347,17 @@ def main() -> None:
 
     print(f"Loading {len(symbols)} symbols")
     print(f"Period={args.period}, Interval={args.interval}")
+    print(f"Batch size={args.batch_size}")
 
-    total_rows = 0
+    total_rows, loaded_symbols = load_prices(
+        database_url=args.database_url,
+        symbols=symbols,
+        period=args.period,
+        interval=args.interval,
+        batch_size=args.batch_size,
+    )
 
-    for i, symbol in enumerate(symbols, start=1):
-        try:
-            df = download_symbol_history(symbol, args.period, args.interval)
-            if df.empty:
-                print(f"[{i}/{len(symbols)}] [WARN] No data for {symbol}")
-                continue
-
-            rows = df.to_dict(orient="records")
-            inserted = upsert_prices(engine, rows)
-            total_rows += inserted
-            print(f"[{i}/{len(symbols)}] [OK] {symbol}: upserted {inserted} rows")
-        except Exception as e:
-            print(f"[{i}/{len(symbols)}] [ERROR] {symbol}: {e}")
-
+    print(f"Done. Symbols loaded: {len(loaded_symbols)}")
     print(f"Done. Total upserted rows: {total_rows}")
 
 

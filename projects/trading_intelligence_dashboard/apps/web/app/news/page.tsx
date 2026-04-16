@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchNews, NewsApiItem } from "@/lib/api";
 
 type UiNewsItem = {
@@ -12,6 +12,10 @@ type UiNewsItem = {
   score: number;
   created_at: string;
 };
+
+function toErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
 
 function mapApiToUi(data: NewsApiItem[]): UiNewsItem[] {
   return (data ?? []).map((n, idx) => ({
@@ -42,7 +46,7 @@ export default function NewsPage() {
     [items]
   );
 
-  async function loadHistory() {
+  const loadHistory = useCallback(async () => {
     const seq = ++reqSeq.current;
     try {
       setStatus((s) => (s === "idle" ? "loading" : s));
@@ -53,14 +57,14 @@ export default function NewsPage() {
       setItems(mapApiToUi(data));
       setStatus("ok");
       setErrorMsg("");
-    } catch (e: any) {
+    } catch (e: unknown) {
       if (seq !== reqSeq.current) return;
       setStatus("error");
-      setErrorMsg(e?.message ?? "Failed to fetch");
+      setErrorMsg(toErrorMessage(e, "Failed to fetch"));
     }
-  }
+  }, [historyLimit]);
 
-  async function startLiveSession() {
+  const startLiveSession = useCallback(async () => {
     reqSeq.current += 1;
     const sessionId = ++liveSessionIdRef.current;
 
@@ -76,14 +80,14 @@ export default function NewsPage() {
       const baselineMapped = mapApiToUi(baseline);
       liveSeenRef.current = new Set(baselineMapped.map((x) => x.id));
       setStatus("ok");
-    } catch (e: any) {
+    } catch (e: unknown) {
       if (sessionId !== liveSessionIdRef.current) return;
       setStatus("error");
-      setErrorMsg(e?.message ?? "Failed to fetch");
+      setErrorMsg(toErrorMessage(e, "Failed to fetch"));
     }
-  }
+  }, []);
 
-  async function pollLiveOnce() {
+  const pollLiveOnce = useCallback(async () => {
     const seq = ++reqSeq.current;
     const mySession = liveSessionIdRef.current;
 
@@ -111,36 +115,42 @@ export default function NewsPage() {
 
       setStatus("ok");
       setErrorMsg("");
-    } catch (e: any) {
+    } catch (e: unknown) {
       if (seq !== reqSeq.current) return;
       setStatus("error");
-      setErrorMsg(e?.message ?? "Failed to fetch");
+      setErrorMsg(toErrorMessage(e, "Failed to fetch"));
     }
-  }
+  }, []);
 
   useEffect(() => {
     modeRef.current = "live";
-    setMode("live");
-    startLiveSession();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const timeoutId = window.setTimeout(() => {
+      void startLiveSession();
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [startLiveSession]);
 
   useEffect(() => {
     if (mode !== "live") return;
     const id = setInterval(() => {
-      pollLiveOnce();
+      void pollLiveOnce();
     }, 3000);
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode]);
+  }, [mode, pollLiveOnce]);
 
   useEffect(() => {
     if (mode !== "history") return;
-    loadHistory();
-    const id = setInterval(loadHistory, 60000);
-    return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, historyLimit]);
+    const timeoutId = window.setTimeout(() => {
+      void loadHistory();
+    }, 0);
+    const id = setInterval(() => {
+      void loadHistory();
+    }, 60000);
+    return () => {
+      window.clearTimeout(timeoutId);
+      clearInterval(id);
+    };
+  }, [mode, loadHistory]);
 
   return (
     <div className="tid-panel-soft min-h-[760px] overflow-hidden">

@@ -5,6 +5,13 @@ from sqlalchemy import text
 from app.db.deps import get_db
 
 router = APIRouter(prefix="/screener", tags=["screener"])
+RVOL_SQL = """
+CASE
+  WHEN vb.baseline_days < :min_baseline_days THEN NULL
+  WHEN vb.avg_volume IS NULL OR vb.avg_volume = 0 THEN NULL
+  ELSE (l.volume::float / vb.avg_volume)
+END
+""".strip()
 
 
 @router.get("")
@@ -15,10 +22,10 @@ def run_screener(
     min_volume: int | None = None,
     min_pct_change: float | None = None,
     max_pct_change: float | None = None,
-    rvol_days: int = 20,
+    rvol_days: int = Query(default=20, ge=5, le=90),
     min_rvol: float | None = None,
     max_rvol: float | None = None,
-    limit: int = 50,
+    limit: int = Query(default=50, ge=1, le=250),
     db: Session = Depends(get_db),
 ):
     base_sql = """
@@ -53,6 +60,7 @@ def run_screener(
     vol_baseline AS (
       SELECT
         symbol,
+        COUNT(*)::int AS baseline_days,
         AVG(volume)::float AS avg_volume
       FROM ranked
       WHERE rn BETWEEN 2 AND (1 + :rvol_days)
@@ -66,10 +74,7 @@ def run_screener(
       l.prev_close,
       l.pct_change,
       vb.avg_volume,
-      CASE
-        WHEN vb.avg_volume IS NULL OR vb.avg_volume = 0 THEN NULL
-        ELSE (l.volume::float / vb.avg_volume)
-      END AS rvol
+      {rvol_sql} AS rvol
     FROM latest l
     LEFT JOIN vol_baseline vb
       ON vb.symbol = l.symbol
@@ -83,15 +88,20 @@ def run_screener(
       {max_rvol_filter}
     ORDER BY
       CASE
-        WHEN (CASE WHEN vb.avg_volume IS NULL OR vb.avg_volume = 0 THEN NULL ELSE (l.volume::float / vb.avg_volume) END) IS NULL
+        WHEN ({rvol_sql}) IS NULL
         THEN 1 ELSE 0
       END,
-      (CASE WHEN vb.avg_volume IS NULL OR vb.avg_volume = 0 THEN NULL ELSE (l.volume::float / vb.avg_volume) END) DESC NULLS LAST,
+      ({rvol_sql}) DESC NULLS LAST,
+      ABS(COALESCE(l.pct_change, 0)) DESC,
       l.symbol ASC
     LIMIT :limit;
     """
 
-    params = {"limit": limit, "rvol_days": rvol_days}
+    params = {
+        "limit": limit,
+        "rvol_days": rvol_days,
+        "min_baseline_days": min(rvol_days, 5),
+    }
     symbol_filter = ""
 
     if symbols:
@@ -108,6 +118,7 @@ def run_screener(
 
     rendered = base_sql.format(
         symbol_filter=symbol_filter,
+        rvol_sql=RVOL_SQL,
         min_price_filter=add_filter("min_price", " AND l.close >= :min_price", min_price),
         max_price_filter=add_filter("max_price", " AND l.close <= :max_price", max_price),
         min_volume_filter=add_filter("min_volume", " AND l.volume >= :min_volume", min_volume),
@@ -115,12 +126,12 @@ def run_screener(
         max_pct_filter=add_filter("max_pct_change", " AND l.pct_change <= :max_pct_change", max_pct_change),
         min_rvol_filter=add_filter(
             "min_rvol",
-            " AND (CASE WHEN vb.avg_volume IS NULL OR vb.avg_volume = 0 THEN NULL ELSE (l.volume::float / vb.avg_volume) END) >= :min_rvol",
+            f" AND ({RVOL_SQL}) >= :min_rvol",
             min_rvol,
         ),
         max_rvol_filter=add_filter(
             "max_rvol",
-            " AND (CASE WHEN vb.avg_volume IS NULL OR vb.avg_volume = 0 THEN NULL ELSE (l.volume::float / vb.avg_volume) END) <= :max_rvol",
+            f" AND ({RVOL_SQL}) <= :max_rvol",
             max_rvol,
         ),
     )

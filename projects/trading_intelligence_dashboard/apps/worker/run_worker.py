@@ -4,6 +4,7 @@ import time
 import hashlib
 from datetime import datetime, timezone
 from jobs.ftc_rss import fetch_ftc_press_releases
+from jobs.fetch_prices import refresh_prices
 from pipelines.ticker_universe import load_ticker_universe
 from pipelines.ticker_extract import extract_tickers
 from jobs.sec_atom import sec_atom_job
@@ -16,6 +17,11 @@ r = redis.Redis.from_url(REDIS_URL, decode_responses=True)
 NEWS_LIST_KEY = "news:items"
 NEWS_SEEN_KEY = "news:seen"
 MAX_ITEMS = 300
+PRICE_REFRESH_SECONDS = int(os.getenv("PRICE_REFRESH_SECONDS", str(6 * 60 * 60)))
+PRICE_REFRESH_PERIOD = os.getenv("PRICE_REFRESH_PERIOD", "6mo")
+PRICE_REFRESH_INTERVAL = os.getenv("PRICE_REFRESH_INTERVAL", "1d")
+PRICE_REFRESH_SYMBOL_LIMIT = int(os.getenv("PRICE_REFRESH_SYMBOL_LIMIT", "500"))
+PRICE_REFRESH_BATCH_SIZE = int(os.getenv("PRICE_REFRESH_BATCH_SIZE", "25"))
 
 TICKER_UNIVERSE = load_ticker_universe()
 
@@ -67,8 +73,20 @@ def main():
     print(f"[worker] ticker universe loaded: {len(TICKER_UNIVERSE)} symbols")
 
     print(f"[worker] starting with REDIS_URL={REDIS_URL}")
+    last_price_refresh = 0.0
     while True:
         try:
+            now = time.time()
+            if now - last_price_refresh >= PRICE_REFRESH_SECONDS:
+                rows, symbols = refresh_prices(
+                    period=PRICE_REFRESH_PERIOD,
+                    interval=PRICE_REFRESH_INTERVAL,
+                    limit_symbols=PRICE_REFRESH_SYMBOL_LIMIT,
+                    batch_size=PRICE_REFRESH_BATCH_SIZE,
+                )
+                last_price_refresh = now
+                print(f"[worker] price refresh loaded_symbols={len(symbols)} upserted_rows={rows}")
+
             # FTC
             items = fetch_ftc_press_releases(limit=25)
             ftc_rss_job(items)

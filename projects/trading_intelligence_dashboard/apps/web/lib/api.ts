@@ -23,14 +23,27 @@ export type ScreenerRow = {
 };
 
 export type Candle = {
-  day?: string;
-  date?: string;
-  open?: number;
-  high?: number;
-  low?: number;
-  close?: number;
-  volume?: number;
+  symbol: string;
+  day: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
 };
+
+async function readApiError(res: Response, fallback: string) {
+  try {
+    const payload = (await res.json()) as { detail?: string };
+    if (payload?.detail) {
+      return payload.detail;
+    }
+  } catch {
+    // ignore JSON parse failures and fall back to status text
+  }
+
+  return `${fallback} ${res.status}`;
+}
 
 export async function fetchNews(params?: {
   limit?: number;
@@ -72,13 +85,14 @@ export async function fetchScreener(params?: {
 
   const url = `${API_BASE}/screener${qs.toString() ? `?${qs.toString()}` : ""}`;
   const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`Screener API error ${res.status}`);
+  if (!res.ok) throw new Error(await readApiError(res, "Screener API error"));
   return (await res.json()) as ScreenerRow[];
 }
 
-export async function fetchCandles(symbol: string) {
-  const url = `${API_BASE}/tickers/${encodeURIComponent(symbol)}/candles`;
+export async function fetchCandles(symbol: string, limit = 90) {
+  const qs = new URLSearchParams({ limit: String(limit) });
+  const url = `${API_BASE}/tickers/${encodeURIComponent(symbol)}/candles?${qs.toString()}`;
   const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`Ticker candles API error ${res.status}`);
+  if (!res.ok) throw new Error(await readApiError(res, "Ticker candles API error"));
   return (await res.json()) as Candle[];
 }
