@@ -2,6 +2,10 @@
 __pycache__/
 *.py[cod]
 
+# JavaScript / Next.js dependencies and build output
+node_modules/
+.next/
+
 # Worker runtime cache
 apps/worker/.cache/
 .cache/
@@ -10,3 +14,10 @@ apps/worker/.cache/
 .DS_Store
 .vscode/
 .idea/
+*~
+\#*\#
+*.save
+*.swp
+
+# Generated repo notes
+project_tree.txt
