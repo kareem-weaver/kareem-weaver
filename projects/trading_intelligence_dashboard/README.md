@@ -1,144 +1,112 @@
 # Trading Intelligence Dashboard
 
-## 🚀 Local Development (WSL)
-
-> **Important:** This project must be run from the WSL Linux filesystem  
-> (e.g. `~/trading_intelligence_dashboard`), **not** `/mnt/c`.
+A local trading workstation for monitoring regulatory/news catalysts, running a stock screener, and viewing ticker charts.
 
 ---
 
-### 1️⃣ Start the backend (API + Database)
+## Stack
 
-From the project root:
+- **Frontend:** Next.js (App Router)
+- **Backend:** FastAPI
+- **Worker:** Python scraper/ingestion jobs
+- **Cache / live feed:** Redis
+- **Database:** Postgres
+- **Container orchestration:** Docker Compose
+
+---
+
+## Features
+
+- **Live News Feed**
+  - Real-time scraping (SEC, FTC)
+  - Live session mode (empty start, fills in real time)
+  - History mode (last X items)
+  - Session reset (“End Session”)
+
+- **Stock Screener**
+  - Filter by volume, price, % change, RVOL
+  - API-driven results
+
+- **Ticker Page**
+  - Lookup any symbol
+  - Lightweight chart rendering
+  - Quick symbol buttons
+
+- **UI**
+  - Dark, trader-style theme
+  - Fast, minimal layout
+  - Focused workflow (news → screener → ticker)
+
+---
+
+## Run Instructions
+
+### Prerequisites
+
+- Docker and Docker Compose
+- Node.js `>=20.9.0` for the Next.js app
+- npm
+
+### Recommended Start
+
+Run the backend stack from the repo root:
 
 ```bash
-cd ~/trading_intelligence_dashboard
-docker compose up
+docker compose up --build db redis api worker
+```
 
+In a second terminal, start the frontend:
 
-http://localhost:8000
+```bash
+cd apps/web
+npm install
+npm run dev
+```
 
-http://localhost:8000/docs
+Then open:
 
+- Frontend: `http://localhost:3000`
+- API: `http://localhost:8000`
+- API health check: `http://localhost:8000/health`
 
+### Notes
 
-## ✅ Project Checklist (created by Chat) — Trading Intelligence Dashboard
+- The frontend talks to `http://localhost:8000` by default through `NEXT_PUBLIC_API_BASE`.
+- The worker fills Redis with news items and refreshes price data in the background, so the dashboard may look sparse for a moment right after startup.
+- The ticker page can backfill candle data on the first lookup for a symbol.
+- Update `SEC_USER_AGENT` in [docker-compose.yml](/home/jabbarweaver/Code/kareem-weaver/projects/trading_intelligence_dashboard/docker-compose.yml) before relying on SEC ingestion.
 
-### 0️⃣ Project Setup & Foundations
-- [x] Define capstone scope (product, not research-only)
-- [x] Choose domain (trading / market intelligence)
-- [x] Design high-level architecture (API + Web + DB)
-- [x] Create monorepo structure
-- [x] Set up GitHub repository
-- [x] Move project to WSL Linux filesystem
-- [x] Verify Docker + Node + Python environments
-- [x] Write basic README run instructions
+### Stop The Stack
 
----
+```bash
+docker compose down
+```
 
-### 1️⃣ Backend (FastAPI + Postgres)
-- [x] Initialize FastAPI project
-- [x] Dockerize API service
-- [x] Add Postgres container
-- [x] Define database models (daily price candles)
-- [x] Create DB session / dependency layer
-- [x] Implement health check endpoint
-- [x] Implement ticker candle endpoint
-- [x] Seed database with dummy OHLCV data
-- [x] Support multiple symbols in seed data
-- [x] Verify API works via `/docs`
+To remove the Postgres volume too:
 
----
-
-### 2️⃣ Screener Backend Logic
-- [x] Create screener endpoint
-- [x] Compute daily % change
-- [x] Add volume filters
-- [x] Add relative volume (RVOL) calculation
-- [x] Add configurable lookback window
-- [ ] Add gap % (open vs prev close)
-- [ ] Add volatility (ATR or stdev)
-- [ ] Add indicator table (RSI, EMA, etc.)
-- [ ] Add sorting options (RVOL, % change)
-- [ ] Add screener presets (momentum, gappers)
+```bash
+docker compose down -v
+```
 
 ---
 
-### 3️⃣ Frontend (Next.js App Router)
-- [x] Initialize Next.js app
-- [x] Fix routing structure (`apps/web/app`)
-- [x] Create screener page route
-- [x] Display screener table
-- [x] Add filter inputs (volume, RVOL, limit)
-- [x] Fetch data from backend API
-- [x] Handle loading & error states
-- [ ] Add navigation bar (Dashboard / Screener / News)
-- [ ] Improve table styling (Tailwind polish)
-- [ ] Highlight high-RVOL rows visually
-- [ ] Add column sorting (client-side)
+## Project Structure
 
----
-
-### 4️⃣ Ticker Detail Pages
-- [x] Dynamic ticker route (`/ticker/[symbol]`)
-- [ ] Fetch candle data for selected symbol
-- [ ] Render price chart (candles or line)
-- [ ] Display volume chart
-- [ ] Display indicators (RSI, EMA)
-- [ ] Add recent news for symbol
-- [ ] Add back-navigation to screener
-
----
-
-### 5️⃣ Data Ingestion & Workers
-- [x] Create worker service skeleton
-- [x] Add price fetch job (placeholder)
-- [ ] Connect to real market data source
-- [ ] Schedule periodic price updates
-- [ ] Store historical prices
-- [ ] Compute indicators asynchronously
-- [ ] Store computed indicators in DB
-
----
-
-### 6️⃣ News & Sentiment (Optional but Strong)
-- [x] News route skeleton
-- [ ] Integrate news scraper or API
-- [ ] Tag news by ticker
-- [ ] Display recent headlines per ticker
-- [ ] Add basic sentiment scoring (optional)
-- [ ] Highlight news-driven movers
-
----
-
-### 7️⃣ Advanced / Stretch Features
-- [ ] ML-based signal or prediction (baseline model)
-- [ ] Backtesting simple strategies
-- [ ] TradingView-style replay mode
-- [ ] User watchlists
-- [ ] Discord bot integration (alerts)
-- [ ] Auth (read-only demo users)
-
----
-
-### 8️⃣ Demo & Capstone Deliverables
-- [ ] Finalize demo flow (click-by-click)
-- [ ] Populate DB with realistic demo data
-- [ ] Prepare demo script
-- [ ] Capture screenshots / screen recording
-- [ ] Write architecture explanation
-- [ ] Write technical challenges section
-- [ ] Write future work section
-- [ ] Rehearse live demo
-- [ ] Push final code to GitHub
-
----
-
-### 9️⃣ Final Quality Checks
-- [ ] Clean unused files/folders
-- [ ] Add comments to complex logic
-- [ ] Ensure README is clear and complete
-- [ ] Verify project runs from scratch
-- [ ] Confirm grading rubric alignment
-
----
+```text
+trading_intelligence_dashboard/
+├── apps/
+│   ├── api/                  # FastAPI backend
+│   │   ├── app/              # API routes and DB layer
+│   │   └── scripts/          # local data/bootstrap utilities
+│   ├── web/                  # Next.js frontend
+│   │   └── src/
+│   │       ├── app/          # App Router pages and layout
+│   │       ├── components/   # shared UI
+│   │       └── lib/          # frontend API client helpers
+│   └── worker/               # scrapers / background jobs
+│       ├── jobs/             # ingestion tasks
+│       └── pipelines/        # symbol extraction + ticker universe
+├── docs/                     # architecture and demo notes
+├── docker-compose.yml
+└── README.md
+```

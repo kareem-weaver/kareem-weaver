@@ -5,6 +5,14 @@ from sqlalchemy import text
 from app.db.deps import get_db
 
 router = APIRouter(prefix="/screener", tags=["screener"])
+RVOL_SQL = """
+CASE
+  WHEN vb.baseline_days < :min_baseline_days THEN NULL
+  WHEN vb.avg_volume IS NULL OR vb.avg_volume = 0 THEN NULL
+  ELSE (l.volume::float / vb.avg_volume)
+END
+""".strip()
+
 
 @router.get("")
 def run_screener(
@@ -12,16 +20,12 @@ def run_screener(
     min_price: float | None = None,
     max_price: float | None = None,
     min_volume: int | None = None,
-
     min_pct_change: float | None = None,
     max_pct_change: float | None = None,
-
-    # NEW: Relative volume filters
-    rvol_days: int = 20,                 # N-day average volume baseline
-    min_rvol: float | None = None,       # e.g. 1.5 means 50% above avg
+    rvol_days: int = Query(default=20, ge=5, le=90),
+    min_rvol: float | None = None,
     max_rvol: float | None = None,
-
-    limit: int = 50,
+    limit: int = Query(default=50, ge=1, le=250),
     db: Session = Depends(get_db),
 ):
     base_sql = """
@@ -35,7 +39,7 @@ def run_screener(
         close,
         volume,
         ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY day DESC) AS rn,
-        LAG(close) OVER (PARTITION BY symbol ORDER BY day DESC) AS prev_close
+        LEAD(close) OVER (PARTITION BY symbol ORDER BY day DESC) AS prev_close
       FROM prices_daily
       {symbol_filter}
     ),
@@ -54,9 +58,9 @@ def run_screener(
       WHERE rn = 1
     ),
     vol_baseline AS (
-      -- average volume over the next rvol_days rows (excluding rn=1)
       SELECT
         symbol,
+        COUNT(*)::int AS baseline_days,
         AVG(volume)::float AS avg_volume
       FROM ranked
       WHERE rn BETWEEN 2 AND (1 + :rvol_days)
@@ -70,10 +74,7 @@ def run_screener(
       l.prev_close,
       l.pct_change,
       vb.avg_volume,
-      CASE
-        WHEN vb.avg_volume IS NULL OR vb.avg_volume = 0 THEN NULL
-        ELSE (l.volume::float / vb.avg_volume)
-      END AS rvol
+      {rvol_sql} AS rvol
     FROM latest l
     LEFT JOIN vol_baseline vb
       ON vb.symbol = l.symbol
@@ -87,16 +88,22 @@ def run_screener(
       {max_rvol_filter}
     ORDER BY
       CASE
-        WHEN (CASE WHEN vb.avg_volume IS NULL OR vb.avg_volume = 0 THEN NULL ELSE (l.volume::float / vb.avg_volume) END) IS NULL
+        WHEN ({rvol_sql}) IS NULL
         THEN 1 ELSE 0
       END,
-      (CASE WHEN vb.avg_volume IS NULL OR vb.avg_volume = 0 THEN NULL ELSE (l.volume::float / vb.avg_volume) END) DESC NULLS LAST
+      ({rvol_sql}) DESC NULLS LAST,
+      ABS(COALESCE(l.pct_change, 0)) DESC,
+      l.symbol ASC
     LIMIT :limit;
     """
 
-    params = {"limit": limit, "rvol_days": rvol_days}
-
+    params = {
+        "limit": limit,
+        "rvol_days": rvol_days,
+        "min_baseline_days": min(rvol_days, 5),
+    }
     symbol_filter = ""
+
     if symbols:
         sym_list = [s.strip().upper() for s in symbols.split(",") if s.strip()]
         if sym_list:
@@ -110,14 +117,23 @@ def run_screener(
         return clause
 
     rendered = base_sql.format(
-        symbol_filter=symbol_filter if symbol_filter else "",
+        symbol_filter=symbol_filter,
+        rvol_sql=RVOL_SQL,
         min_price_filter=add_filter("min_price", " AND l.close >= :min_price", min_price),
         max_price_filter=add_filter("max_price", " AND l.close <= :max_price", max_price),
         min_volume_filter=add_filter("min_volume", " AND l.volume >= :min_volume", min_volume),
         min_pct_filter=add_filter("min_pct_change", " AND l.pct_change >= :min_pct_change", min_pct_change),
         max_pct_filter=add_filter("max_pct_change", " AND l.pct_change <= :max_pct_change", max_pct_change),
-        min_rvol_filter=add_filter("min_rvol", " AND (CASE WHEN vb.avg_volume IS NULL OR vb.avg_volume = 0 THEN NULL ELSE (l.volume::float / vb.avg_volume) END) >= :min_rvol", min_rvol),
-        max_rvol_filter=add_filter("max_rvol", " AND (CASE WHEN vb.avg_volume IS NULL OR vb.avg_volume = 0 THEN NULL ELSE (l.volume::float / vb.avg_volume) END) <= :max_rvol", max_rvol),
+        min_rvol_filter=add_filter(
+            "min_rvol",
+            f" AND ({RVOL_SQL}) >= :min_rvol",
+            min_rvol,
+        ),
+        max_rvol_filter=add_filter(
+            "max_rvol",
+            f" AND ({RVOL_SQL}) <= :max_rvol",
+            max_rvol,
+        ),
     )
 
     rows = db.execute(text(rendered), params).mappings().all()
@@ -126,8 +142,8 @@ def run_screener(
         {
             "symbol": r["symbol"],
             "day": r["day"].isoformat(),
-            "close": float(r["close"]),
-            "volume": int(r["volume"]),
+            "close": float(r["close"]) if r["close"] is not None else None,
+            "volume": int(r["volume"]) if r["volume"] is not None else None,
             "prev_close": float(r["prev_close"]) if r["prev_close"] is not None else None,
             "pct_change": float(r["pct_change"]) if r["pct_change"] is not None else None,
             "avg_volume": float(r["avg_volume"]) if r["avg_volume"] is not None else None,
