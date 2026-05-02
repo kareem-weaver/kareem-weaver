@@ -1,7 +1,6 @@
 # Trading Analysis Plan
 
 ## Visual Architecture Diagram
-
 ```mermaid
 flowchart TD
     subgraph Frontend
