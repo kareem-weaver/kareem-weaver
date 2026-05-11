@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem -Recurse \"c:\\\\Users\\\\jabba\\\\Desktop\\\\Code\\\\kareem-weaver\\\\projects\\\\music\" -Force | ForEach-Object { $_.FullName })"
+    ]
+  }
+}

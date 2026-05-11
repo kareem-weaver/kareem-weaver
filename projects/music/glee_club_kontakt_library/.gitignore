@@ -1,0 +1,25 @@
+# Audio sample files — too large for git, store in cloud storage
+*.wav
+*.aif
+*.aiff
+*.mp3
+*.flac
+*.ogg
+
+# Kontakt binary instrument files — not human-readable, not diffable
+*.nki
+*.nkx
+*.nkc
+*.nkr
+*.nkm
+
+# Sample folder (will hold raw recordings locally)
+samples/
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# DAW project files
+*.flp
+*.fst
